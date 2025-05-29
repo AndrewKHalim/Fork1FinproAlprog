@@ -14,19 +14,19 @@ void setup() {
 void loop() {
   int rainValue = analogRead(RainSensorPin);
   if(rainValue >= 3000){
-    Serial.printf("0\n", rainValue);
+    Serial.println("0");
     digitalWrite(RedLEDPin, HIGH);
     digitalWrite(GreenLEDPin, LOW);
     digitalWrite(BlueLEDPin, LOW);
   }
   else if(rainValue < 3000 && rainValue > 1500){
-    Serial.printf("1\n", rainValue);
+    Serial.println("1");
     digitalWrite(RedLEDPin, LOW);
     digitalWrite(GreenLEDPin, HIGH);
     digitalWrite(BlueLEDPin, LOW);
   }
   else if(rainValue <= 1500){
-    Serial.printf("2\n", rainValue);
+    Serial.println("2");
     digitalWrite(RedLEDPin, HIGH);
     digitalWrite(GreenLEDPin, LOW);
     digitalWrite(BlueLEDPin, HIGH);
