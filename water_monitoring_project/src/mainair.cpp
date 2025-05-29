@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iomanip>
 #include <string>
+#include <conio.h>
 
 struct DataEntry
 {
@@ -153,6 +154,15 @@ int main()
 
     while (true)
     {
+        if (_kbhit())
+        {
+            char ch = _getch();
+            if (ch == 'q' || ch == 'Q')
+            {
+                std::cout << "Keluar dari mode monitoring.\n";
+                break;
+            }
+        }
         if (ReadFile(hSerial, &incomingByte, 1, &bytesRead, NULL))
         {
             if (bytesRead == 1)
