@@ -40,13 +40,13 @@ int main() {
 
                 std::string timestamp = getCurrentTimestamp();
 
-                if (buffer == "0") {
+                if (buffer == "2") {
                     std::cout << timestamp << " - Critical! (Low Level)\n";
                 }
                 else if (buffer == "1") {
                     std::cout << timestamp << " - Stable\n";
                 }
-                else if (buffer == "2") {
+                else if (buffer == "0") {
                     std::cout << timestamp << " - Critical! (High Level)\n";
                 }
                 else {
