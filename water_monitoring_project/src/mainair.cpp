@@ -14,6 +14,15 @@ struct DataEntry
     int status;
 };
 
+std::string getCurrentTimestamp() {
+    time_t now = time(0);
+    tm* localTime = localtime(&now);
+
+    char buf[20];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localTime);
+    return std::string(buf);
+}
+
 void saveToBinary(time_t t, int status)
 {
     std::ofstream binFile("data.bin", std::ios::binary | std::ios::app);
@@ -92,14 +101,44 @@ void sortDataByStatus()
     }
 }
 
+std::string getStatusMessage(const std::string& buffer) {
+    std::string timestamp = getCurrentTimestamp();
+    
+    if (buffer == "2") {
+        return timestamp + " - Critical! (Low Level)";
+    }
+    else if (buffer == "1") {
+        return timestamp + " - Stable";
+    }
+    else if (buffer == "0") {
+        return timestamp + " - Critical! (High Level)";
+    }
+    else {
+        return timestamp + " - Status tidak dikenali: '" + buffer + "'";
+    }
+}
+
+int getStatusCode(const std::string& buffer) {
+    if (buffer == "2") return 2;  // Low Level
+    if (buffer == "1") return 1;  // Stable
+    if (buffer == "0") return 0;  // High Level
+    return -1; // Unknown status
+}
+
 int main()
 {
-    HANDLE hSerial = CreateFile("COM3", GENERIC_READ, 0, NULL,
+    std::cout << "Pilih COM Port:\n1. COM3 (mainair logic)\n2. COM7 (mainlogic logic)\nPilihan (1/2): ";
+    int comChoice;
+    std::cin >> comChoice;
+    
+    std::string comPort = (comChoice == 2) ? "COM7" : "COM3";
+    
+    HANDLE hSerial = CreateFile(comPort.c_str(), GENERIC_READ, 0, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (hSerial == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Gagal membuka COM3!\n";
+        std::cerr << "Gagal membuka " << comPort << "!\n";
         return 1;
     }
 
@@ -108,7 +147,7 @@ int main()
 
     if (!GetCommState(hSerial, &dcbSerialParams))
     {
-        std::cerr << "Gagal baca config COM3\n";
+        std::cerr << "Gagal baca config " << comPort << "\n";
         return 1;
     }
 
@@ -119,7 +158,7 @@ int main()
 
     if (!SetCommState(hSerial, &dcbSerialParams))
     {
-        std::cerr << "Gagal set config COM3\n";
+        std::cerr << "Gagal set config " << comPort << "\n";
         return 1;
     }
 
@@ -131,6 +170,7 @@ int main()
     int mode;
     std::cin >> mode;
     std::cin.ignore();
+    
     if (mode == 2)
     {
         exportToJson();
@@ -150,7 +190,8 @@ int main()
         return 0;
     }
 
-    std::cout << "Listening from COM3...\n";
+    std::cout << "Listening from " << comPort << "...\n";
+    std::cout << "Tekan 'q' untuk keluar dari monitoring.\n";
 
     while (true)
     {
@@ -163,6 +204,7 @@ int main()
                 break;
             }
         }
+        
         if (ReadFile(hSerial, &incomingByte, 1, &bytesRead, NULL))
         {
             if (bytesRead == 1)
@@ -170,16 +212,16 @@ int main()
                 if (incomingByte == '\n')
                 {
                     buffer.erase(std::remove(buffer.begin(), buffer.end(), '\r'), buffer.end());
-                    if (buffer == "1")
-                    {
-                        std::cout << "Air tak terdeteksi\n";
-                        saveToBinary(time(nullptr), 0);
+                    
+                    // Menampilkan pesan status dengan timestamp
+                    std::cout << getStatusMessage(buffer) << "\n";
+                    
+                    // Menyimpan data ke binary file
+                    int statusCode = getStatusCode(buffer);
+                    if (statusCode != -1) {
+                        saveToBinary(time(nullptr), statusCode);
                     }
-                    else if (buffer == "0")
-                    {
-                        std::cout << "Air terdeteksi!\n";
-                        saveToBinary(time(nullptr), 1);
-                    }
+                    
                     buffer.clear();
                 }
                 else
