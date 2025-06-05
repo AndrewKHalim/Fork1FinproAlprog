@@ -63,18 +63,31 @@ void exportToJson() {
     time_t t;
     int status;
     bool first = true;
+
     while (binFile.read(reinterpret_cast<char*>(&t), sizeof(t))) {
         binFile.read(reinterpret_cast<char*>(&status), sizeof(status));
+
+        // Ubah time_t ke tm* dan format string "YYYY-MM-DD HH:MM:SS"
+        tm* ltm = localtime(&t);
+        char buf[20];
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ltm);
+
         if (!first) jsonFile << ",\n";
-        jsonFile << "  {\"timestamp\": " << t << ", \"status\": " << status << "}";
+        jsonFile << "  {"
+                 << "\"timestamp\": " << t << ", "
+                 << "\"datetime\": \"" << buf << "\", "
+                 << "\"status\": " << status
+                 << "}";
         first = false;
     }
+
     jsonFile << "\n]\n";
     binFile.close();
     jsonFile.close();
 
     std::cout << "Data berhasil diekspor ke data.json\n";
 }
+
 
 // Cari entri pada tanggal tertentu (DD MM YYYY) dan tampilkan
 void searchByDate(int targetDay, int targetMonth, int targetYear) {
@@ -149,9 +162,9 @@ int mapRainValueToStatus(int rainValue) {
 std::string getStatusMessage(int statusCode) {
     std::string timestamp = getCurrentTimestamp();
     switch (statusCode) {
-        case 0: return timestamp + " - Critical! (High Level)";
+        case 0: return timestamp + " - Critical! (Low Level)";
         case 1: return timestamp + " - Stable";
-        case 2: return timestamp + " - Critical! (Low Level)";
+        case 2: return timestamp + " - Critical! (High Level)";
         default:
             return timestamp + " - Status tidak dikenali: '" + std::to_string(statusCode) + "'";
     }
@@ -284,67 +297,88 @@ private:
 };
 
 int main() {
-    std::cout << "=== Aplikasi Server Sensor & Terminal UI ===\n";
-    std::cout << "Pilih mode:\n"
-                 "1. Monitoring (terima data lewat TCP dan simpan ke data.bin)\n"
-                 "2. Ekspor ke JSON (data.bin -> data.json)\n"
-                 "3. Cari data berdasarkan tanggal\n"
-                 "4. Urutkan data berdasarkan status\n"
-                 "Pilihan: ";
+    while (true) {
+        std::cout << "=== Aplikasi Server Sensor & Terminal UI ===\n";
+        std::cout << "Pilih mode:\n"
+                     "1. Monitoring (terima data lewat TCP dan simpan ke data.bin)\n"
+                     "2. Ekspor ke JSON (data.bin -> data.json)\n"
+                     "3. Cari data berdasarkan tanggal\n"
+                     "4. Urutkan data berdasarkan status\n"
+                     "5. Quit\n"
+                     "Pilihan: ";
 
-    int mode;
-    std::cin >> mode;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        int mode;
+        std::cin >> mode;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    if (mode == 2) {
-        exportToJson();
-        return 0;
-    }
-    else if (mode == 3) {
-        int d, m, y;
-        std::cout << "Masukkan tanggal (DD MM YYYY): ";
-        std::cin >> d >> m >> y;
-        searchByDate(d, m, y);
-        return 0;
-    }
-    else if (mode == 4) {
-        sortDataByStatus();
-        return 0;
-    }
-    // Jika mode == 1 (atau selain 2,3,4), masuk ke monitoring
-    std::cout << "Mode Monitoring dipilih.\n";
-    std::cout << "Menunggu koneksi TCP pada port 8080...\n";
-    std::cout << "Tekan 'q' untuk keluar dari monitoring.\n";
-
-    TCPServer server(8080);
-    if (!server.start()) {
-        std::cerr << "Gagal memulai server.\n";
-        return 1;
-    }
-
-    // Jalankan server di thread terpisah
-    std::thread serverThread(&TCPServer::run, &server);
-
-    // Di thread utama, cek input 'q' untuk berhenti
-    #ifdef _WIN32
-        while (true) {
-            if (_kbhit()) {
-                char ch = _getch();
-                if (ch == 'q' || ch == 'Q') {
-                    std::cout << "Berhenti monitoring...\n";
-                    server.stop();
-                    break;
-                }
-            }
-            Sleep(100); // kurangi beban CPU
+        if (mode == 2) {
+            exportToJson();
+            // Kembali ke menu (tidak keluar program)
+            continue;
         }
-    #else
-        // Sederhana: tunggu Enter untuk menghentikan (jika bukan Windows)
-        std::cin.get();
-        server.stop();
-    #endif
+        else if (mode == 3) {
+            int d, m, y;
+            std::cout << "Masukkan tanggal (DD MM YYYY): ";
+            std::cin >> d >> m >> y;
+            searchByDate(d, m, y);
+            // Kembali ke menu
+            continue;
+        }
+        else if (mode == 4) {
+            sortDataByStatus();
+            // Kembali ke menu
+            continue;
+        }
+        else if (mode == 5) {
+            // Keluar dari loop dan program
+            break;
+        }
+        else if (mode == 1) {
+            std::cout << "Mode Monitoring dipilih.\n";
+            std::cout << "Menunggu koneksi TCP pada port 8080...\n";
+            std::cout << "Tekan 'q' untuk keluar dari monitoring.\n";
 
-    serverThread.join();
-    std::cout << "Server telah dimatikan.\n";
+            TCPServer server(8080);
+            if (!server.start()) {
+                std::cerr << "Gagal memulai server.\n";
+                // Kembali ke menu (mungkin user akan memilih mode lain)
+                continue;
+            }
+
+            // Jalankan server di thread terpisah
+            std::thread serverThread(&TCPServer::run, &server);
+
+            // Di thread utama, cek input 'q' untuk berhenti monitoring
+        #ifdef _WIN32
+            while (true) {
+                if (_kbhit()) {
+                    char ch = _getch();
+                    if (ch == 'q' || ch == 'Q') {
+                        std::cout << "Berhenti monitoring...\n";
+                        server.stop();
+                        break;  // Keluar dari loop _kbhit(), tapi tetap di dalam mode 1
+                    }
+                }
+                Sleep(100); // kurangi beban CPU
+            }
+        #else
+            // Jika bukan Windows, cukup tunggu Enter untuk menghentikan monitoring
+            std::cin.get();
+            server.stop();
+        #endif
+
+            serverThread.join();
+            std::cout << "Server telah dimatikan.\n";
+
+            // Setelah monitoring dihentikan, kembali ke menu utama
+            continue;
+        }
+        else {
+            std::cout << "Pilihan tidak valid. Silakan coba lagi.\n\n";
+            continue;
+        }
+    }
+
+    std::cout << "Terima kasih, program selesai.\n";
     return 0;
 }
