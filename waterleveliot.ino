@@ -23,9 +23,9 @@ void setup() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Lagi nyoba nyambung ke WiFi...");
+    Serial.println("Mencoba sambungan ke WiFi");
   }
-  Serial.println("Udah nyambung ke WiFi");
+  Serial.println("Berhasil membuat koneksi ke WiFi!");
   Serial.print("IP ESP32: ");
   Serial.println(WiFi.localIP());
 }
@@ -58,7 +58,7 @@ void loop() {
   while(retries > 0 && !connected) {
     if (client.connect(server_ip, server_port)) {
       connected = true;
-      Serial.println("Berhasil nyambung ke server");
+      Serial.println("Berhasil tersambung ke server");
       
       String message = "{\"rainValue\":" + String(rainValue) + "}";
       client.println(message);
@@ -75,10 +75,10 @@ void loop() {
     } else {
       retries--;
       if(retries > 0) {
-        Serial.println("Gagal nyambung, coba lagi...");
+        Serial.println("Gagal menyambung, coba lagi...");
         delay(500);
       } else {
-        Serial.println("Udah dicoba 3x, tetap gagal nyambung");
+        Serial.println("Gagal menyambung selama 3x");
       }
     }
   }
