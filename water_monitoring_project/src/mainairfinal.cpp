@@ -54,10 +54,6 @@ void saveToBinary(time_t t, int status) {
 void exportToJson() {
     std::ifstream binFile("data.bin", std::ios::binary);
     std::ofstream jsonFile("data.json");
-    if (!binFile || !jsonFile) {
-        std::cerr << "Gagal membuka file data.bin atau membuat data.json.\n";
-        return;
-    }
 
     jsonFile << "[\n";
     time_t t;
