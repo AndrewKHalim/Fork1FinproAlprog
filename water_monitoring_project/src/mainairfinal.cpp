@@ -54,6 +54,10 @@ void saveToBinary(time_t t, int status) {
 void exportToJson() {
     std::ifstream binFile("data.bin", std::ios::binary);
     std::ofstream jsonFile("data.json");
+    if (!binFile || !jsonFile) {
+        std::cerr << "Gagal membuka file data.bin atau membuat data.json.\n";
+        return;
+    }
 
     jsonFile << "[\n";
     time_t t;
@@ -268,11 +272,6 @@ private:
 
                 // Simpan ke data.bin
                 saveToBinary(time(nullptr), statusCode);
-            } else {
-                // Jika JSON tidak berisi "rainValue", abaikan
-                std::cout << getCurrentTimestamp()
-                          << " - JSON tidak mengandung \"rainValue\": "
-                          << data << "\n";
             }
 
             // Kirim balasan "OK" ke klien
@@ -349,4 +348,3 @@ int main() {
     std::cout << "Server telah dimatikan.\n";
     return 0;
 }
-
