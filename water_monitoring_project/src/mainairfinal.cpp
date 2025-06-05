@@ -120,9 +120,11 @@ void searchByDate(int targetDay, int targetMonth, int targetYear) {
 }
 
 // Baca semua entri, urutkan berdasarkan status, dan tampilkan
-void sortDataByStatus() {
+void sortDataByStatus()
+{
     std::ifstream binFile("data.bin", std::ios::binary);
-    if (!binFile) {
+    if (!binFile)
+    {
         std::cerr << "Gagal membuka data.bin.\n";
         return;
     }
@@ -130,19 +132,29 @@ void sortDataByStatus() {
     std::vector<DataEntry> entries;
     time_t t;
     int status;
-    while (binFile.read(reinterpret_cast<char*>(&t), sizeof(t))) {
-        binFile.read(reinterpret_cast<char*>(&status), sizeof(status));
+    while (binFile.read(reinterpret_cast<char *>(&t), sizeof(t)))
+    {
+        binFile.read(reinterpret_cast<char *>(&status), sizeof(status));
         entries.push_back({t, status});
     }
     binFile.close();
 
-    std::sort(entries.begin(), entries.end(), [](const DataEntry& a, const DataEntry& b) {
-        return a.status < b.status;
-    });
+    // Bubble sort by status
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        for (size_t j = 0; j + 1 < entries.size() - i; ++j)
+        {
+            if (entries[j].status > entries[j + 1].status)
+            {
+                std::swap(entries[j], entries[j + 1]);
+            }
+        }
+    }
 
-    for (const auto& entry : entries) {
-        tm* ltm = localtime(&entry.t);
-        std::cout << "Waktu: " 
+    for (const auto &entry : entries)
+    {
+        tm *ltm = localtime(&entry.t);
+        std::cout << "Waktu: "
                   << std::put_time(ltm, "%Y-%m-%d %H:%M:%S")
                   << ", Status: " << entry.status << "\n";
     }
