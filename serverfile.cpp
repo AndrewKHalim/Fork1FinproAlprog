@@ -41,36 +41,37 @@ public:
     }
 
     bool start() {
-        // Create socket
+        // bikin socket TCP
         server_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (server_socket == INVALID_SOCKET) {
-            std::cerr << "Failed to create socket" << std::endl;
+            std::cerr << "Gagal membuat socket." << std::endl;
             return false;
         }
 
-        // Set socket options
+        // set opsi biar socket bisa reuse alamat
         int opt = 1;
         setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
-        // Bind socket
+        // ngatur info IP dan port server
         sockaddr_in server_addr;
         server_addr.sin_family = AF_INET;
         server_addr.sin_addr.s_addr = INADDR_ANY;
         server_addr.sin_port = htons(port);
 
+        // binding socket ke alamat dan port
         if (bind(server_socket, (sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
-            std::cerr << "Bind failed" << std::endl;
+            std::cerr << "Gagal melakukan binding." << std::endl;
             return false;
         }
 
-        // Listen
-        if (listen(server_socket, 5) == SOCKET_ERROR) {     
-            std::cerr << "Listen failed" << std::endl;
+        // mulai dengerin koneksi masuk
+        if (listen(server_socket, 5) == SOCKET_ERROR) {
+            std::cerr << "Gagal mendengarkan koneksi." << std::endl;
             return false;
         }
 
         running = true;
-        std::cout << "Server listening on port " << port << std::endl;
+        std::cout << "Server berhasil dijalankan di port " << port << "." << std::endl;
         return true;
     }
 
@@ -78,16 +79,16 @@ public:
         while (running) {
             sockaddr_in client_addr;
             socklen_t client_len = sizeof(client_addr);
-            
+
             SOCKET client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_len);
             if (client_socket == INVALID_SOCKET) {
                 if (running) {
-                    std::cerr << "Accept failed" << std::endl;
+                    std::cerr << "Gagal menerima koneksi dari klien." << std::endl;
                 }
                 continue;
             }
 
-            // Handle client in separate thread
+            // tiap client dijalanin di thread biar bisa handle banyak koneksi sekaligus
             std::thread client_thread(&TCPServer::handleClient, this, client_socket, client_addr);
             client_thread.detach();
         }
@@ -104,83 +105,78 @@ private:
     void handleClient(SOCKET client_socket, sockaddr_in client_addr) {
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
-        
-        std::cout << "Client connected from " << client_ip << std::endl;
+
+        std::cout << "Koneksi diterima dari " << client_ip << "." << std::endl;
 
         char buffer[1024];
-        while (true) {  
+        while (true) {
+            // nerima data dari klien
             int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-            
             if (bytes_received <= 0) {
-                break; // Client disconnected or error
+                break; // klien disconnect atau error
             }
 
             buffer[bytes_received] = '\0';
             std::string data(buffer);
-            
-            // Process received data
-            std::cout << "Received from " << client_ip << ": " << data << std::endl;
-            
-            // Parse JSON data here if needed
+
+            // tampilkan data mentah
+            std::cout << "Data diterima dari " << client_ip << ": " << data << std::endl;
+
+            // kalau formatnya JSON, proses di sini
             processData(data);
-            
-            // Send acknowledgment
-            std::string response = "OK";
+
+            // kirim respon ke klien
+            std::string response = "Data telah diterima.";
             send(client_socket, response.c_str(), response.length(), 0);
         }
     }
 
     void processData(const std::string& jsonData) {
-        // Parse sensor data
-        std::cout << "Raw JSON: " << jsonData << std::endl;
-        
-        // Find rainValue
+        // debug print isi jsonnya biar keliatan
+        std::cout << "Data mentah (JSON): " << jsonData << std::endl;
+
+        // cari nilai sensor 'rainValue'
         size_t rain_val_pos = jsonData.find("\"rainValue\":");
         if (rain_val_pos != std::string::npos) {
             size_t start = jsonData.find(":", rain_val_pos) + 1;
             size_t end = jsonData.find("}", start);
-            
             std::string rain_val_str = jsonData.substr(start, end - start);
             int rainValue = std::stoi(rain_val_str);
-            
-            std::cout << "Sensor Value: " << rainValue;
-            
-            // Show status based on your original thresholds
-            if(rainValue >= 3000) {
-                std::cout << " (Status: 0 - Red LED)";
+
+            std::cout << "Nilai sensor terdeteksi: " << rainValue;
+
+            // tentuin status berdasarkan ambang
+            if (rainValue >= 3000) {
+                std::cout << " (Status: 0 - LED Merah)" << std::endl;
+            } else if (rainValue > 1500) {
+                std::cout << " (Status: 1 - LED Hijau)" << std::endl;
+            } else {
+                std::cout << " (Status: 2 - LED Merah dan Biru)" << std::endl;
             }
-            else if(rainValue < 3000 && rainValue > 1500) {
-                std::cout << " (Status: 1 - Green LED)";
-            }
-            else if(rainValue <= 1500) {
-                std::cout << " (Status: 2 - Red+Blue LED)";
-            }
-            std::cout << std::endl;
         }
-        
-        std::cout << "---" << std::endl;
+
+        std::cout << "-----------------------------" << std::endl;
     }
 };
 
 int main() {
     TCPServer server(8080);
-    
+
     if (!server.start()) {
-        std::cerr << "Failed to start server" << std::endl;
+        std::cerr << "Server tidak dapat dijalankan." << std::endl;
         return 1;
     }
-    
-    std::cout << "Press Enter to stop server..." << std::endl;
-    
-    // Run server in separate thread
+
+    std::cout << "Tekan Enter untuk menghentikan server..." << std::endl;
+
+    // jalanin server di thread baru biar bisa dengerin terus
     std::thread server_thread(&TCPServer::run, &server);
-    
-    // Wait for user input to stop
+
     std::cin.get();
-    
+
     server.stop();
     server_thread.join();
-    
-    std::cout << "Server stopped" << std::endl;
+
+    std::cout << "Server telah dimatikan." << std::endl;
     return 0;
 }
