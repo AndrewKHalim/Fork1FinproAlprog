@@ -2,7 +2,7 @@
 
 const char* ssid = "Hotspawt";
 const char* password = "Andrewisme4";
-const char* server_ip = "192.168.159.88"; // Your laptop's IP address
+const char* server_ip = "192.168.159.88"; // IP laptop
 const int server_port = 8080;
 
 #define RainSensorPin 33 
@@ -19,14 +19,14 @@ void setup() {
   pinMode(BlueLEDPin, OUTPUT);
   pinMode(RedLEDPin, OUTPUT);
   
-  // Connect to WiFi
+  // buat nyambung ke WiFi (sekaligus ngecek)
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
+    Serial.println("Lagi nyoba nyambung ke WiFi...");
   }
-  Serial.println("Connected to WiFi");
-  Serial.print("ESP32 IP: ");
+  Serial.println("Udah nyambung ke WiFi");
+  Serial.print("IP ESP32: ");
   Serial.println(WiFi.localIP());
 }
 
@@ -51,38 +51,34 @@ void loop() {
     digitalWrite(BlueLEDPin, HIGH);
   }
   
-
   int retries = 3;
   bool connected = false;
   
-  // Connect to server and send data (with retry)
+  // coba kirim data ke server (diattempt selama 3x percobaan)
   while(retries > 0 && !connected) {
-      if (client.connect(server_ip, server_port)) {
-        connected = true;
-      Serial.println("Connected to server");
+    if (client.connect(server_ip, server_port)) {
+      connected = true;
+      Serial.println("Berhasil nyambung ke server");
       
       String message = "{\"rainValue\":" + String(rainValue) + "}";
-      
-      // Send data
       client.println(message);
-      Serial.println("Data sent: " + message);
+      Serial.println("Data dikirim: " + message);
       
-      // Wait for response
       while (client.connected() && !client.available()) {
         delay(10);
       }
       
       if (client.available()) {
         String response = client.readString();
-        Serial.println("Server response: " + response);
+        Serial.println("Balasan dari server: " + response);
       }
     } else {
       retries--;
       if(retries > 0) {
-        Serial.println("Connection failed, retrying...");
+        Serial.println("Gagal nyambung, coba lagi...");
         delay(500);
       } else {
-        Serial.println("Connection failed after retries");
+        Serial.println("Udah dicoba 3x, tetap gagal nyambung");
       }
     }
   }
